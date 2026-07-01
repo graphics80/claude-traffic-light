@@ -146,6 +146,7 @@ und setze die Budgets so, dass ein volles Fenster ungefähr 100 % ergibt.
 | Falscher serieller Port (mac)  | `AMPEL_SERIAL_PORT=/dev/cu.usbmodemXXXX node host/serial-bridge.mjs` |
 | Falscher serieller Port (Win)  | `set AMPEL_SERIAL_PORT=COM5 && node host\serial-bridge.mjs`   |
 | Log ansehen (mac, launchd)     | `~/Library/Logs/claude-ampel.log`                            |
+| Windows: `npm install` bricht bei `@serialport/bindings-cpp` ab | Es fehlen Build-Tools für die native Erweiterung. Meist liegt ein passendes Prebuild bereit; falls nicht, die *Visual Studio Build Tools* (mit „Desktop development with C++") installieren, dann `install` erneut. |
 
 Das Gerät wird normalerweise automatisch erkannt (über die RP2040-USB-Kennung),
 egal ob es unter macOS `usbmodem…`, unter Linux `ttyACM…` oder unter Windows
