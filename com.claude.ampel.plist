@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd template for the Claude Traffic Light bridge (macOS).
+  Copy to ~/Library/LaunchAgents/ and adjust the two paths below
+  (node binary + serial-bridge.mjs) to your machine, then:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.claude.ampel.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claude.ampel</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/ABSOLUTE/PATH/TO/claude-traffic-light/host/serial-bridge.mjs</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/ABSOLUTE/PATH/TO/claude-traffic-light/host</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOU/Library/Logs/claude-ampel.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOU/Library/Logs/claude-ampel.log</string>
+</dict>
+</plist>

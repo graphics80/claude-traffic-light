@@ -1,0 +1,24 @@
+{
+  "//": "Merge this into ~/.claude/settings.json. Replace __HOOK__ with the absolute path to host/hook-client.mjs (install.sh does this for you).",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "node __HOOK__ C idle" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node __HOOK__ C think" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "AskUserQuestion", "hooks": [{ "type": "command", "command": "node __HOOK__ C input" }] },
+      { "matcher": "^(?!AskUserQuestion).*", "hooks": [{ "type": "command", "command": "node __HOOK__ C tool" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "node __HOOK__ C think" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node __HOOK__ C idle" }] }
+    ],
+    "Notification": [
+      { "hooks": [{ "type": "command", "command": "node __HOOK__ C input" }] }
+    ]
+  }
+}

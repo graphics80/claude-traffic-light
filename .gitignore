@@ -1,0 +1,12 @@
+# Node
+node_modules/
+
+# PlatformIO
+.pio/
+firmware/.pio/
+
+# Generated at install time
+claude-settings-generated.json
+
+# OS
+.DS_Store

@@ -1,0 +1,16 @@
+{
+  "name": "claude-ampel-host",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Host bridge: forwards Claude Code hook state + ccusage token budget to the RP2040 Ampel over USB serial.",
+  "bin": {
+    "ampel-hook": "./hook-client.mjs"
+  },
+  "scripts": {
+    "start": "node serial-bridge.mjs",
+    "hook": "node hook-client.mjs"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
+  }
+}
