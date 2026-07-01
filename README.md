@@ -30,7 +30,7 @@ aber auf dem runden LCD statt einer LED-Ampel.
 |------------------|---------------------------------------------------|
 | 🟢 Grün          | Bereit / fertig – Claude wartet auf deinen Prompt |
 | 🟡 Gelb (blinkt) | Claude denkt nach                                 |
-| 🔵 Blau (fest)   | Claude arbeitet an einem Tool – der **Tool-Name** steht in der Mitte |
+| 🔵 Blau (fest)   | Claude arbeitet an einem Tool – der **Tool-Name** steht in der Mitte (lange Namen laufen als Laufschrift durch) |
 | 🔴 Rot (blinkt)  | **Claude braucht dich** – Rückfrage oder Freigabe. Der **Projektname** steht dabei in der Mitte. |
 
 Rot erscheint **nur**, wenn Claude auf deine Eingabe wartet.

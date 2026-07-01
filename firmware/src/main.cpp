@@ -112,15 +112,66 @@ static void drawStats(int h, int w) {
     drawText(CENTER_X - textWidth(buf, STAT_SCALE) / 2, STAT_Y, buf, STAT_SCALE, WHITE);
 }
 
-// Draws the current label centered over the disc.
+static int labelTop() { return CENTER_Y - (7 * NAME_SCALE) / 2; }
+static bool labelFits() { return textWidth(nameBuf, NAME_SCALE) <= MARQUEE_W; }
+
+// Draws the current label centered over the disc (used when it fits).
 // Tool name in tool state, session name in input state.
 static void drawName() {
     if(nameBuf[0] == '\0') return;
     char buf[NAME_MAX_CHARS + 1];
     strncpy(buf, nameBuf, NAME_MAX_CHARS);
     buf[NAME_MAX_CHARS] = '\0';
-    int y = CENTER_Y - (7 * NAME_SCALE) / 2;
-    drawText(CENTER_X - textWidth(buf, NAME_SCALE) / 2, y, buf, NAME_SCALE, WHITE);
+    drawText(CENTER_X - textWidth(buf, NAME_SCALE) / 2, labelTop(), buf, NAME_SCALE, WHITE);
+}
+
+// Like drawChar but only paints pixels within [clipL, clipR).
+static void drawCharClip(int x, int y, char c, uint8_t scale, uint16_t color,
+                         int clipL, int clipR) {
+    const uint8_t* g = glyph5x7(c);
+    for(int row = 0; row < 7; row++) {
+        uint8_t bits = g[row];
+        for(int col = 0; col < 5; col++) {
+            if(bits & (1 << (4 - col))) {
+                for(int dy = 0; dy < scale; dy++)
+                    for(int dx = 0; dx < scale; dx++) {
+                        int px = x + col*scale + dx;
+                        if(px < clipL || px >= clipR) continue;
+                        Display::setPixel(px, y + row*scale + dy, color);
+                    }
+            }
+        }
+    }
+}
+
+static int scrollOffset = 0;
+static unsigned long tScroll = 0;
+
+// Draws one marquee frame of nameBuf inside the disc window, over background bg.
+static void drawMarquee(uint16_t bg) {
+    const int W = MARQUEE_W;
+    const int top = labelTop();
+    const int left = CENTER_X - W / 2;
+    const int h = 7 * NAME_SCALE;
+
+    // Clear the window band to the disc color.
+    for(int y = top; y < top + h; y++)
+        for(int x = left; x < left + W; x++)
+            Display::setPixel(x, y, bg);
+
+    const int adv = 6 * NAME_SCALE;
+    const int glyphs = (int) strlen(nameBuf);
+    const int total = glyphs * adv + MARQUEE_GAP;
+    const int off = total > 0 ? (scrollOffset % total) : 0;
+
+    // Two copies for a seamless wrap-around.
+    for(int rep = 0; rep < 2; rep++) {
+        for(int i = 0; i < glyphs; i++) {
+            int x = left - off + rep * total + i * adv;
+            if(x + adv < left || x > left + W) continue;
+            drawCharClip(x, top, nameBuf[i], NAME_SCALE, WHITE, left, left + W);
+        }
+    }
 }
 
 // ---- shapes ----------------------------------------------------------------
@@ -223,10 +274,27 @@ void loop() {
     if(centerRedraw) {
         uint16_t base = ampelColor(ampel);
         drawCenter(wantBlink ? base : dim(base));
-        if(hasLabel) drawName();
+        if(hasLabel) {
+            if(ampel == TOOL && !labelFits()) {
+                scrollOffset = 0;
+                tScroll = millis();
+                drawMarquee(base);           // start scrolling frame
+            } else {
+                drawName();                   // static centered label
+            }
+        }
         drawnAmpel = ampel;
         drawnBlinkOn = wantBlink;
         strncpy(drawnName, nameBuf, sizeof(drawnName));
+    }
+
+    // Scroll the tool name when it is too long to fit.
+    if(ampel == TOOL && nameBuf[0] && !labelFits()) {
+        if(millis() - tScroll >= SCROLL_MS) {
+            tScroll = millis();
+            scrollOffset += SCROLL_STEP;
+            drawMarquee(ampelColor(TOOL));
+        }
     }
 
     uint16_t oc = gaugeColor(outerPct);

@@ -54,4 +54,11 @@
 #define NAME_SCALE     2     // pixel scale of the 5x7 font
 #define NAME_MAX_CHARS 8     // truncate longer names to fit the disc
 
+// Marquee (scrolling tool name in the tool state).
+// If the label is wider than MARQUEE_W it scrolls instead of being truncated.
+#define MARQUEE_W    (2 * AMPEL_RADIUS - 12)  // visible window width in px
+#define MARQUEE_GAP  14      // px gap between loops
+#define SCROLL_MS    110     // time per scroll step
+#define SCROLL_STEP  2       // px advanced per step
+
 #endif
