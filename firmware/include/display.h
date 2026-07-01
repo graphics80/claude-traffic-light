@@ -30,6 +30,7 @@
 #define GREEN       0x07E0
 #define YELLOW      0xFFE0
 #define AMBER       0xFC00
+#define BLUE        0x04FF
 #define GRAY        0x8430
 
 /**

@@ -5,11 +5,17 @@
 // to the device through the supplied send() callback.
 
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   FIVE_HOUR_TOKEN_BUDGET,
   WEEKLY_TOKEN_BUDGET,
   POLL_INTERVAL_MS,
 } from './config.mjs';
+
+// Last known percentages are cached to disk so the bridge can show them
+// immediately on start / reconnect, before the first (slow) ccusage call.
+export const USAGE_CACHE = fileURLToPath(new URL('./.usage-cache.json', import.meta.url));
 
 // Try a global `ccusage` first, fall back to `npx ccusage@latest`.
 function runCcusage(args) {
@@ -60,23 +66,33 @@ async function weeklyUsed() {
   return daily.reduce((sum, d) => sum + Number(d.totalTokens || 0), 0);
 }
 
+let lastH = null;
+let lastW = null;
+
+function writeCache() {
+  try {
+    fs.writeFileSync(USAGE_CACHE, JSON.stringify({ h: lastH, w: lastW }));
+  } catch {}
+}
+
 async function pollOnce(send) {
   try {
     const used5h = await fiveHourUsed();
-    const h = remainingPct(used5h, FIVE_HOUR_TOKEN_BUDGET);
-    send(`H ${h}`);
-    console.log(`[usage] 5h used=${used5h} -> remaining ${h}%`);
+    lastH = remainingPct(used5h, FIVE_HOUR_TOKEN_BUDGET);
+    send(`H ${lastH}`);
+    console.log(`[usage] 5h used=${used5h} -> remaining ${lastH}%`);
   } catch (e) {
     console.error('[usage] 5h poll failed:', e.message);
   }
   try {
     const usedWeek = await weeklyUsed();
-    const w = remainingPct(usedWeek, WEEKLY_TOKEN_BUDGET);
-    send(`W ${w}`);
-    console.log(`[usage] week used=${usedWeek} -> remaining ${w}%`);
+    lastW = remainingPct(usedWeek, WEEKLY_TOKEN_BUDGET);
+    send(`W ${lastW}`);
+    console.log(`[usage] week used=${usedWeek} -> remaining ${lastW}%`);
   } catch (e) {
     console.error('[usage] weekly poll failed:', e.message);
   }
+  writeCache();
 }
 
 export function startPolling(send) {

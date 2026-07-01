@@ -8,14 +8,48 @@
 // Every line received is forwarded verbatim to the device (newline-terminated).
 
 import net from 'node:net';
+import fs from 'node:fs';
 import { SerialPort } from 'serialport';
 import {
   TCP_HOST, TCP_PORT, SERIAL_PATH, SERIAL_BAUD, POLLER_ENABLED,
 } from './config.mjs';
-import { startPolling } from './usage.mjs';
+import { startPolling, USAGE_CACHE } from './usage.mjs';
 
 let port = null;
+let currentPath = null;
 let reconnectTimer = null;
+
+// Last value seen per command key, so a freshly (re)connected device can be
+// brought up to date immediately instead of showing the boot defaults.
+const lastState = {}; // 'C'|'H'|'W'|'N'|'B' -> full line
+
+function cacheLine(line) {
+  const key = line.trim()[0];
+  if (key && 'CHWNB'.includes(key)) lastState[key] = line.trim();
+}
+
+// Seed gauges from the last poll on disk so a device connecting before the
+// first (slow) ccusage call still shows real percentages instead of 0%.
+function seedFromCache() {
+  try {
+    const { h, w } = JSON.parse(fs.readFileSync(USAGE_CACHE, 'utf8'));
+    if (Number.isFinite(h)) lastState.H = `H ${h}`;
+    if (Number.isFinite(w)) lastState.W = `W ${w}`;
+  } catch {}
+  if (!lastState.C) lastState.C = 'C idle';
+}
+
+function writeRaw(line) {
+  if (!port || !port.isOpen) return;
+  port.write(line.endsWith('\n') ? line : line + '\n');
+}
+
+function replayState() {
+  // Brightness first, then gauges/name, then the color state last.
+  for (const k of ['B', 'H', 'W', 'N', 'C']) {
+    if (lastState[k]) writeRaw(lastState[k]);
+  }
+}
 
 async function resolveSerialPath() {
   if (SERIAL_PATH) return SERIAL_PATH;
@@ -32,35 +66,43 @@ async function resolveSerialPath() {
 }
 
 function writeToDevice(line) {
-  const msg = line.endsWith('\n') ? line : line + '\n';
+  cacheLine(line);
   if (port && port.isOpen) {
-    port.write(msg);
-  } else {
-    console.warn('[bridge] device not open, dropped:', line.trim());
+    writeRaw(line);
   }
+  // If not connected we just keep it cached; it replays on reconnect.
+}
+
+// Tear down the current port (on error / close / unplug) and retry.
+function handleDisconnect(reason) {
+  if (port) {
+    const p = port;
+    port = null;
+    currentPath = null;
+    try { if (p.isOpen) p.close(() => {}); } catch {}
+    console.warn(`[bridge] serial ${reason}, reconnecting...`);
+  }
+  scheduleReconnect();
 }
 
 async function openSerial() {
   const path = await resolveSerialPath();
   if (!path) {
-    console.warn('[bridge] no serial device found, retrying in 3s...');
     scheduleReconnect();
     return;
   }
   port = new SerialPort({ path, baudRate: SERIAL_BAUD }, (err) => {
     if (err) {
       console.error('[bridge] open failed:', err.message);
-      scheduleReconnect();
+      handleDisconnect('open error');
       return;
     }
+    currentPath = path;
     console.log(`[bridge] serial open: ${path} @ ${SERIAL_BAUD}`);
+    replayState();
   });
-  port.on('error', (e) => console.error('[bridge] serial error:', e.message));
-  port.on('close', () => {
-    console.warn('[bridge] serial closed, reconnecting...');
-    port = null;
-    scheduleReconnect();
-  });
+  port.on('error', () => handleDisconnect('error'));
+  port.on('close', () => handleDisconnect('closed'));
   // Surface device logs.
   port.on('data', (buf) => process.stdout.write(`[device] ${buf}`));
 }
@@ -70,8 +112,20 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     openSerial();
-  }, 3000);
+  }, 2000);
 }
+
+// Watchdog: some platforms don't emit 'close' on a silent unplug. Poll the
+// device list and force a reconnect if our port vanished (hotplug / swap).
+setInterval(async () => {
+  if (!port || !port.isOpen || !currentPath) return;
+  try {
+    const ports = await SerialPort.list();
+    if (!ports.some((p) => p.path === currentPath)) {
+      handleDisconnect('unplugged');
+    }
+  } catch {}
+}, 3000);
 
 // TCP server for hook clients + poller
 const server = net.createServer((sock) => {
@@ -92,6 +146,7 @@ server.listen(TCP_PORT, TCP_HOST, () => {
   console.log(`[bridge] listening on tcp://${TCP_HOST}:${TCP_PORT}`);
 });
 
+seedFromCache();
 await openSerial();
 
 if (POLLER_ENABLED) {

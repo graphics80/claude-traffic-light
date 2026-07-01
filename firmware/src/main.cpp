@@ -13,15 +13,15 @@
  * Center disc  = agent state:
  *     green         idle / done
  *     amber blink   thinking
- *     red solid     running a tool
- *     red blink     WAITING FOR YOUR ATTN (+ session name shown on disc)
+ *     blue solid    running a tool (+ tool name shown on disc)
+ *     red blink     WAITING FOR YOUR INPUT (+ session name shown on disc)
  * Outer ring   = 5-hour budget remaining (drains as you use it)
  * Inner ring   = weekly budget remaining
  * Bottom text  = "5h NN%  w MM%"
  *
  * Serial line protocol (115200 baud, '\n' terminated), sent by the host bridge:
  *   C idle | C think | C tool | C input   set agent state
- *   N <text>                               session name (shown while in input)
+ *   N <text>                               center label (tool name / session name)
  *   H <0..100>                             outer gauge = 5h remaining percent
  *   W <0..100>                             inner gauge = weekly remaining percent
  *   B <0..100>                             backlight brightness
@@ -50,8 +50,8 @@ static unsigned long tBlink = 0;
 static uint16_t ampelColor(Ampel a) {
     switch(a) {
         case THINK: return YELLOW;
-        case TOOL:  return RED;
-        case ATTN: return RED;
+        case TOOL:  return BLUE;
+        case ATTN:  return RED;
         default:    return GREEN;
     }
 }
@@ -112,7 +112,8 @@ static void drawStats(int h, int w) {
     drawText(CENTER_X - textWidth(buf, STAT_SCALE) / 2, STAT_Y, buf, STAT_SCALE, WHITE);
 }
 
-// Draws the session name centered over the disc (only used in ATTN state).
+// Draws the current label centered over the disc.
+// Tool name in tool state, session name in input state.
 static void drawName() {
     if(nameBuf[0] == '\0') return;
     char buf[NAME_MAX_CHARS + 1];
@@ -216,12 +217,13 @@ void loop() {
     bool wantBlink = blinkActive ? blinkOn : true;
 
     // Center + optional session name
+    bool hasLabel = (ampel == ATTN || ampel == TOOL);
     bool centerRedraw = (ampel != drawnAmpel) || (wantBlink != drawnBlinkOn);
-    if(ampel == ATTN && strcmp(nameBuf, drawnName) != 0) centerRedraw = true;
+    if(hasLabel && strcmp(nameBuf, drawnName) != 0) centerRedraw = true;
     if(centerRedraw) {
         uint16_t base = ampelColor(ampel);
         drawCenter(wantBlink ? base : dim(base));
-        if(ampel == ATTN) drawName();
+        if(hasLabel) drawName();
         drawnAmpel = ampel;
         drawnBlinkOn = wantBlink;
         strncpy(drawnName, nameBuf, sizeof(drawnName));

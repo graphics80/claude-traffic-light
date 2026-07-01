@@ -30,8 +30,10 @@ aber auf dem runden LCD statt einer LED-Ampel.
 |------------------|---------------------------------------------------|
 | 🟢 Grün          | Bereit / fertig – Claude wartet auf deinen Prompt |
 | 🟡 Gelb (blinkt) | Claude denkt nach                                 |
-| 🔴 Rot (fest)    | Claude arbeitet an einem Tool                     |
-| 🔴 Rot (blinkt)  | **Claude braucht dich** – Rückfrage oder Freigabe. Der Projektname steht dabei in der Mitte. |
+| 🔵 Blau (fest)   | Claude arbeitet an einem Tool – der **Tool-Name** steht in der Mitte |
+| 🔴 Rot (blinkt)  | **Claude braucht dich** – Rückfrage oder Freigabe. Der **Projektname** steht dabei in der Mitte. |
+
+Rot erscheint **nur**, wenn Claude auf deine Eingabe wartet.
 
 **Die zwei Ringe** leeren sich, je mehr du verbrauchst. Grün = viel übrig,
 gelb = unter 50 %, rot = unter 20 %.
@@ -207,9 +209,9 @@ Claude Code Hooks ──▶ hook-client.mjs ──TCP──▶ serial-bridge.mjs
 |----------------|-----------------------------------------|
 | `C idle`       | Mitte grün                              |
 | `C think`      | Mitte gelb, blinkt                      |
-| `C tool`       | Mitte rot, fest                        |
+| `C tool`       | Mitte blau, fest                        |
 | `C input`      | Mitte rot, blinkt (wartet auf Eingabe)  |
-| `N <text>`     | Session-/Projektname (im Input-Zustand) |
+| `N <text>`     | Mitten-Label (Tool-Name bzw. Projektname) |
 | `H <0..100>`   | Außenring = 5h-Rest in %                |
 | `W <0..100>`   | Innenring = Wochen-Rest in %            |
 | `B <0..100>`   | Helligkeit                              |
@@ -229,7 +231,7 @@ Poll-Intervall, Token-Budgets.
 |--------------------|----------------------------------------------------|
 | SessionStart, Stop | `idle` (grün)                                      |
 | UserPromptSubmit, PostToolUse | `think` (gelb)                          |
-| PreToolUse (Tools) | `tool` (rot fest)                                  |
+| PreToolUse (Tools) | `tool` (blau fest, Tool-Name)                      |
 | PreToolUse `AskUserQuestion` | `input` (rot blinkt)                     |
 | Notification       | `input` (rot blinkt – Freigabe/Idle)               |
 
