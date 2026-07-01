@@ -59,17 +59,25 @@ grün zeigen.
 ```bash
 git clone https://github.com/graphics80/claude-traffic-light.git
 cd claude-traffic-light
-./install.sh
 ```
 
-`install.sh` installiert die Abhängigkeiten und erzeugt dir eine fertige
-Hook-Konfiguration (`claude-settings-generated.json`).
+Dann den Installer starten – je nach System:
+
+- **macOS / Linux:** `./install.sh`
+- **Windows (PowerShell):** `powershell -ExecutionPolicy Bypass -File .\install.ps1`
+- **überall (falls du magst):** `node install.mjs`
+
+Der Installer installiert die Abhängigkeiten und erzeugt dir eine fertige
+Hook-Konfiguration (`claude-settings-generated.json`) mit den richtigen Pfaden.
 
 ### 4. Hooks in Claude Code aktivieren
 
-Öffne `~/.claude/settings.json` und füge den Inhalt aus
-`claude-settings-generated.json` unter dem Schlüssel `"hooks"` ein.
-(Falls die Datei noch keine `"hooks"` hat, einfach den ganzen Block übernehmen.)
+Öffne deine Claude-Settings und füge den `"hooks"`-Block aus
+`claude-settings-generated.json` ein. (Falls die Datei noch keine `"hooks"` hat,
+einfach den ganzen Block übernehmen.)
+
+- **macOS / Linux:** `~/.claude/settings.json`
+- **Windows:** `%USERPROFILE%\.claude\settings.json`
 
 ### 5. Hintergrund-Dienst starten (Autostart)
 
@@ -82,7 +90,13 @@ cp com.claude.ampel.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.claude.ampel.plist
 ```
 
-**Oder manuell (zum Testen):**
+**Windows (Aufgabenplanung, einmalig in PowerShell):**
+```powershell
+schtasks /create /tn ClaudeAmpel /sc onlogon /tr "node \"$PWD\host\serial-bridge.mjs\""
+# wieder entfernen:  schtasks /delete /tn ClaudeAmpel /f
+```
+
+**Oder manuell (zum Testen, alle Systeme):**
 ```bash
 node host/serial-bridge.mjs
 ```
@@ -129,8 +143,13 @@ und setze die Budgets so, dass ein volles Fenster ungefähr 100 % ergibt.
 | Display bleibt dunkel          | USB-Kabel prüfen (muss Daten führen, nicht nur Strom).       |
 | Ampel reagiert nicht           | Läuft die Bridge? `node host/serial-bridge.mjs` und Log ansehen. Neue Session öffnen (Hooks laden bei Session-Start). |
 | Ringe bleiben leer/voll        | ccusage installiert? Budgets in `config.mjs` sinnvoll?       |
-| Falscher serieller Port        | `AMPEL_SERIAL_PORT=/dev/cu.usbmodemXXXX node host/serial-bridge.mjs` |
-| Log ansehen                    | `~/Library/Logs/claude-ampel.log`                            |
+| Falscher serieller Port (mac)  | `AMPEL_SERIAL_PORT=/dev/cu.usbmodemXXXX node host/serial-bridge.mjs` |
+| Falscher serieller Port (Win)  | `set AMPEL_SERIAL_PORT=COM5 && node host\serial-bridge.mjs`   |
+| Log ansehen (mac, launchd)     | `~/Library/Logs/claude-ampel.log`                            |
+
+Das Gerät wird normalerweise automatisch erkannt (über die RP2040-USB-Kennung),
+egal ob es unter macOS `usbmodem…`, unter Linux `ttyACM…` oder unter Windows
+`COMx` heißt.
 
 launchd-Befehle:
 ```bash

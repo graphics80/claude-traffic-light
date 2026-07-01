@@ -20,9 +20,15 @@ let reconnectTimer = null;
 async function resolveSerialPath() {
   if (SERIAL_PATH) return SERIAL_PATH;
   const ports = await SerialPort.list();
-  const match = ports.find((p) =>
-    /usbmodem|ACM|usbserial/i.test(p.path || ''));
-  return match ? match.path : null;
+  // 1) Most reliable: match the Raspberry Pi RP2040 USB vendor id (2E8A).
+  let m = ports.find((p) => (p.vendorId || '').toLowerCase() === '2e8a');
+  // 2) macOS / Linux CDC device name patterns.
+  if (!m) m = ports.find((p) => /usbmodem|ACM|usbserial/i.test(p.path || ''));
+  // 3) Windows fallback: first COM port.
+  if (!m && process.platform === 'win32') {
+    m = ports.find((p) => /^COM\d+$/i.test(p.path || ''));
+  }
+  return m ? m.path : null;
 }
 
 function writeToDevice(line) {
