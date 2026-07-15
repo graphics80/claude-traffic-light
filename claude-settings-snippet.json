@@ -1,5 +1,5 @@
 {
-  "//": "Merge this into ~/.claude/settings.json. Replace __HOOK__ with the absolute path to host/hook-client.mjs (install.sh does this for you).",
+  "//": "Merge this into ~/.claude/settings.json. Replace __HOOK__ with the absolute path to host/hook-client.mjs (running `node install.mjs` generates this for you with the path filled in). The usage rings need no settings -- the bridge polls them directly.",
   "hooks": {
     "SessionStart": [
       { "hooks": [{ "type": "command", "command": "node __HOOK__ C idle" }] }

@@ -30,9 +30,12 @@
 // Outer ring = 5-hour token budget remaining
 #define OUTER_RADIUS 106
 #define OUTER_WIDTH  16
-// Inner ring = weekly token budget remaining
+// Inner ring = weekly budget remaining
 #define INNER_RADIUS 80
 #define INNER_WIDTH  14
+// Fable ring = weekly Fable-model budget remaining (between inner ring and disc)
+#define FABLE_RADIUS 64
+#define FABLE_WIDTH  8
 // Track color (empty portion of a gauge)
 #define TRACK_COLOR 0x2104   // dim gray
 // Gauge fill = percent of the budget REMAINING (drains with usage).

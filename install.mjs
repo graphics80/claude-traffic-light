@@ -77,6 +77,7 @@ if (isMac) {
 }
 
 console.log(`
-3) The rings need ccusage (loaded automatically via npx, or install globally):
-     npm install -g ccusage
+That's it -- the bridge reads the exact remaining usage (5h, weekly, weekly
+Fable) straight from Claude's own usage endpoint using the OAuth token Claude
+Code already stores. No calibration, and it keeps updating between sessions.
 `);

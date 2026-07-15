@@ -17,6 +17,7 @@
  *     red blink     WAITING FOR YOUR INPUT (+ session name shown on disc)
  * Outer ring   = 5-hour budget remaining (drains as you use it)
  * Inner ring   = weekly budget remaining
+ * Fable ring   = weekly Fable-model budget remaining
  * Bottom text  = "5h NN%  w MM%"
  *
  * Serial line protocol (115200 baud, '\n' terminated), sent by the host bridge:
@@ -24,6 +25,7 @@
  *   N <text>                               center label (tool name / session name)
  *   H <0..100>                             outer gauge = 5h remaining percent
  *   W <0..100>                             inner gauge = weekly remaining percent
+ *   F <0..100>                             fable gauge = weekly Fable remaining percent
  *   B <0..100>                             backlight brightness
  *   P                                      ping -> replies "ampel ok"
  */
@@ -36,8 +38,9 @@ static bool  drawnBlinkOn = true;
 
 static int outerPct = 0, drawnOuter = -1;
 static int innerPct = 0, drawnInner = -1;
+static int fablePct = 100, drawnFable = -1;
 static int drawnStatsOuter = -1, drawnStatsInner = -1;
-static uint16_t drawnOuterColor = 0, drawnInnerColor = 0;
+static uint16_t drawnOuterColor = 0, drawnInnerColor = 0, drawnFableColor = 0;
 
 static char nameBuf[32] = "";
 static char drawnName[32] = "";
@@ -214,6 +217,7 @@ static void handleLine(char* s) {
             break;
         case 'H': outerPct = atoi(arg); break;
         case 'W': innerPct = atoi(arg); break;
+        case 'F': fablePct = atoi(arg); break;
         case 'B': Display::setBrightness((uint8_t) atoi(arg)); break;
         case 'P': sout.info() <= "ampel ok"; break;
         default: break;
@@ -245,8 +249,10 @@ void setup() {
 
     drawGauge(OUTER_RADIUS, OUTER_WIDTH, outerPct, gaugeColor(outerPct));
     drawGauge(INNER_RADIUS, INNER_WIDTH, innerPct, gaugeColor(innerPct));
+    drawGauge(FABLE_RADIUS, FABLE_WIDTH, fablePct, gaugeColor(fablePct));
     drawnOuter = outerPct; drawnOuterColor = gaugeColor(outerPct);
     drawnInner = innerPct; drawnInnerColor = gaugeColor(innerPct);
+    drawnFable = fablePct; drawnFableColor = gaugeColor(fablePct);
     drawCenter(ampelColor(ampel));
     drawnAmpel = ampel; drawnBlinkOn = true;
 
@@ -309,6 +315,13 @@ void loop() {
         drawGauge(INNER_RADIUS, INNER_WIDTH, innerPct, ic);
         drawnInner = innerPct;
         drawnInnerColor = ic;
+    }
+
+    uint16_t fc = gaugeColor(fablePct);
+    if(fablePct != drawnFable || fc != drawnFableColor) {
+        drawGauge(FABLE_RADIUS, FABLE_WIDTH, fablePct, fc);
+        drawnFable = fablePct;
+        drawnFableColor = fc;
     }
 
     if(outerPct != drawnStatsOuter || innerPct != drawnStatsInner) {

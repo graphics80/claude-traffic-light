@@ -1,19 +1,25 @@
 #!/usr/bin/env node
 // Long-running bridge: TCP server -> USB serial to the RP2040 Ampel.
-// Also runs the ccusage poller so the token gauges stay current.
 //
 //   node serial-bridge.mjs
 //
-// Hook clients connect to TCP 127.0.0.1:7654 and send one line per event.
-// Every line received is forwarded verbatim to the device (newline-terminated).
+// Clients connect to TCP 127.0.0.1:7654 and send one line per event; every line
+// is forwarded verbatim to the device (newline-terminated). It is fed by:
+//   - hook-client.mjs   -> the color/label state (what Claude is doing)
+//   - usage-oauth.mjs   -> the exact remaining-usage rings (H / W / F), polled
+//                          from Claude's own /api/oauth/usage endpoint
+// A legacy ccusage estimator (AMPEL_POLLER=1) is available as a fallback when
+// the OAuth token isn't reachable; see host/config.mjs.
 
 import net from 'node:net';
 import fs from 'node:fs';
 import { SerialPort } from 'serialport';
 import {
-  TCP_HOST, TCP_PORT, SERIAL_PATH, SERIAL_BAUD, POLLER_ENABLED,
+  TCP_HOST, TCP_PORT, SERIAL_PATH, SERIAL_BAUD,
+  OAUTH_POLLER_ENABLED, POLLER_ENABLED,
 } from './config.mjs';
-import { startPolling, USAGE_CACHE } from './usage.mjs';
+import { startPolling as startOauthPolling, USAGE_CACHE } from './usage-oauth.mjs';
+import { startPolling as startCcusagePolling } from './usage.mjs';
 
 let port = null;
 let currentPath = null;
@@ -21,20 +27,21 @@ let reconnectTimer = null;
 
 // Last value seen per command key, so a freshly (re)connected device can be
 // brought up to date immediately instead of showing the boot defaults.
-const lastState = {}; // 'C'|'H'|'W'|'N'|'B' -> full line
+const lastState = {}; // 'C'|'H'|'W'|'F'|'N'|'B' -> full line
 
 function cacheLine(line) {
   const key = line.trim()[0];
-  if (key && 'CHWNB'.includes(key)) lastState[key] = line.trim();
+  if (key && 'CHWFNB'.includes(key)) lastState[key] = line.trim();
 }
 
 // Seed gauges from the last poll on disk so a device connecting before the
 // first (slow) ccusage call still shows real percentages instead of 0%.
 function seedFromCache() {
   try {
-    const { h, w } = JSON.parse(fs.readFileSync(USAGE_CACHE, 'utf8'));
+    const { h, w, f } = JSON.parse(fs.readFileSync(USAGE_CACHE, 'utf8'));
     if (Number.isFinite(h)) lastState.H = `H ${h}`;
     if (Number.isFinite(w)) lastState.W = `W ${w}`;
+    if (Number.isFinite(f)) lastState.F = `F ${f}`;
   } catch {}
   if (!lastState.C) lastState.C = 'C idle';
 }
@@ -46,7 +53,7 @@ function writeRaw(line) {
 
 function replayState() {
   // Brightness first, then gauges/name, then the color state last.
-  for (const k of ['B', 'H', 'W', 'N', 'C']) {
+  for (const k of ['B', 'H', 'W', 'F', 'N', 'C']) {
     if (lastState[k]) writeRaw(lastState[k]);
   }
 }
@@ -149,8 +156,14 @@ server.listen(TCP_PORT, TCP_HOST, () => {
 seedFromCache();
 await openSerial();
 
+if (OAUTH_POLLER_ENABLED) {
+  console.log('[bridge] usage rings from /api/oauth/usage (exact 5h/week/fable)');
+  startOauthPolling(writeToDevice);
+}
 if (POLLER_ENABLED) {
-  startPolling(writeToDevice);
-} else {
-  console.log('[bridge] ccusage poller disabled (AMPEL_NO_POLLER=1)');
+  console.log('[bridge] ccusage fallback poller enabled (AMPEL_POLLER=1)');
+  startCcusagePolling(writeToDevice);
+}
+if (!OAUTH_POLLER_ENABLED && !POLLER_ENABLED) {
+  console.log('[bridge] no usage poller enabled; rings hold cached values');
 }
